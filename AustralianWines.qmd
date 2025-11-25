@@ -32,25 +32,29 @@ head(aus_wine_ts) |> gt()
 ###  Data Visualization
 
 ```{r}
+# create a cutoff date for the vertical line (end of training: Dec 1993)
+cutoff_date <- lubridate::ymd("1993-12-01") |> yearmonth()
+
+# Data visualization with cutoff line
 aus_wine_ts |> 
   autoplot(Sales) +
   facet_wrap(~Varietal, scales = "free_y", ncol = 2) +
   labs(title = "Australian Wine Sales by Varietal",
        y = "Sales Volume") +
-  theme_minimal()
+  theme_minimal() +
+  geom_vline(xintercept = cutoff_date, linetype = "dashed", color = "black", linewidth = 0.6)
 ```
 
 
 ### Model Fitting
 
 ```{r}
-# 1. Define Training/Validation Split
-# Let's use data up to end of 1993 for training, and keep 1994-1995 for validation
+# Define Training/Validation Split
+# use data up to end of 1993 for training, and keep 1994-1995 for validation
 train_data <- aus_wine_ts |> 
-  filter_index(. ~ "Dec 1993")
+  filter(Month <= cutoff_date)
 
-# 2. Fit Models
-# fable will fit these 3 models for EVERY Varietal in the dataset automatically
+# Fit Models
 fit <- train_data |> 
   model(
     TSLM = TSLM(Sales ~ trend() + season()),
@@ -59,29 +63,29 @@ fit <- train_data |>
   )
 
 # View the model details (Model Specs)
-fit |> 
-  pivot_longer(everything(), names_to = "Model", values_to = "Details") |> 
-  select(Varietal, Model, Details) |> 
-  head(6) |> 
-  gt()
+fit
 ```
 
 
 ### Training Accuracy 
 
 ```{r}
-# Forecast 24 months ahead
-fc <- fit |> 
-  forecast(h = "24 months")
-
-head(fc)
+fit |> 
+  accuracy() |>
+  select(Varietal, .model, RMSE, MAE, MAPE) |>
+  arrange(.model, RMSE) |>
+  gt() |> fmt_number(decimals = 2)
 ```
 
 
 ### Forecast Accuracy
 
 ```{r}
-# Calculate Accuracy on the Test Set (The data we held out)
+# Forecast 12 months ahead
+fc <- fit |> 
+  forecast(h = "12 months")
+
+# Calculate Accuracy on the Test Set 
 accuracy_table <- accuracy(fc, aus_wine_ts) |> 
   select(Varietal, .model, RMSE, MAE, MAPE) |> 
   arrange(Varietal, RMSE)
@@ -105,4 +109,29 @@ fc |>
   theme_minimal()
 ```
 
+```{r}
+# start one year before cutoff (same yearmonth class as Month)
+trn_start <- yearmonth(cutoff_date |> as.Date() - years(1))
+
+# plot forecasts using the aus_wine_ts tsibble (not `data`)
+fc |>
+  autoplot(aus_wine_ts |> filter(Month >= trn_start)) +
+  labs(y = "Sales", title = "Varietal Sales forecasts") +
+  facet_grid(Varietal ~ .model, scales = "free_y") +
+  theme_minimal() +
+  geom_vline(xintercept = as.Date(cutoff_date), linetype = "dashed", color = "black", linewidth = 0.6)
+```
+
 ### Forecast Table
+
+```{r}
+# Forecast Table — use case-insensitive model match and format Month for headers
+fc |>
+  filter(tolower(.model) == "arima") |>            # match ARIMA regardless of case
+  as_tibble() |>
+  mutate(.mean = round(.mean, 0)) |>               # round forecast values
+  select(Varietal, Month, .mean) |>
+  pivot_wider(names_from = Month, values_from = .mean) |>
+  gt() |> 
+  fmt_number(columns = everything(), decimals = 0)
+```
