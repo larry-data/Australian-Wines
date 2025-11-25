@@ -3,3 +3,106 @@ title: "Australian Wines Time Series Analysis"
 format: html
 ---
 
+```{r}
+library(tidyverse)
+library(fpp3)
+library(gt)
+library(urca)
+```
+
+### Data Import and Preparation
+
+```{r}
+aus_wine <- readr::read_csv(here::here("AustralianWines.csv"), na = "*",
+                            col_types = cols(Rose = col_number()),
+                            show_col_types = FALSE) |> 
+    fill(Rose, .direction = "down") |> 
+    mutate(Month = mdy(str_replace(Month, '-', '-01-')) |> yearmonth()) 
+
+# Convert to Long Format Tsibble
+aus_wine_ts <- aus_wine |> 
+  pivot_longer(cols = -Month, names_to = "Varietal", values_to = "Sales") |> 
+  as_tsibble(index = Month, key = Varietal) |> 
+  mutate(Varietal = str_trim(Varietal))
+
+# Quick check of the data structure
+head(aus_wine_ts) |> gt()
+```
+
+###  Data Visualization
+
+```{r}
+aus_wine_ts |> 
+  autoplot(Sales) +
+  facet_wrap(~Varietal, scales = "free_y", ncol = 2) +
+  labs(title = "Australian Wine Sales by Varietal",
+       y = "Sales Volume") +
+  theme_minimal()
+```
+
+
+### Model Fitting
+
+```{r}
+# 1. Define Training/Validation Split
+# Let's use data up to end of 1993 for training, and keep 1994-1995 for validation
+train_data <- aus_wine_ts |> 
+  filter_index(. ~ "Dec 1993")
+
+# 2. Fit Models
+# fable will fit these 3 models for EVERY Varietal in the dataset automatically
+fit <- train_data |> 
+  model(
+    TSLM = TSLM(Sales ~ trend() + season()),
+    ETS = ETS(Sales),
+    ARIMA = ARIMA(Sales)
+  )
+
+# View the model details (Model Specs)
+fit |> 
+  pivot_longer(everything(), names_to = "Model", values_to = "Details") |> 
+  select(Varietal, Model, Details) |> 
+  head(6) |> 
+  gt()
+```
+
+
+### Training Accuracy 
+
+```{r}
+# Forecast 24 months ahead
+fc <- fit |> 
+  forecast(h = "24 months")
+
+head(fc)
+```
+
+
+### Forecast Accuracy
+
+```{r}
+# Calculate Accuracy on the Test Set (The data we held out)
+accuracy_table <- accuracy(fc, aus_wine_ts) |> 
+  select(Varietal, .model, RMSE, MAE, MAPE) |> 
+  arrange(Varietal, RMSE)
+
+# Display nicely with gt
+accuracy_table |> 
+  group_by(Varietal) |> 
+  gt() |> 
+  fmt_number(columns = c(RMSE, MAE, MAPE), decimals = 2) |> 
+  tab_header(title = "Forecast Accuracy (Validation Set)")
+```
+
+### Forecast Visualization
+
+```{r}
+fc |> 
+  autoplot(aus_wine_ts, level = 80) + # Show 80% prediction intervals
+  facet_wrap(~Varietal, scales = "free_y", ncol = 2) +
+  labs(title = "Forecast vs Actuals (Validation Period)",
+       y = "Sales") +
+  theme_minimal()
+```
+
+### Forecast Table
