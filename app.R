@@ -155,7 +155,7 @@ server <- function(input, output, session) {
   output$model_specs <- renderText({
     fm <- fitted_models()
     if (is.null(fm)) return("No models fitted yet.")
-    capture.output(print(fm))
+    paste(capture.output(print(fm |> t())), collapse = "\n")
   })
 
   # Training accuracy rendered as HTML to avoid ID collisions

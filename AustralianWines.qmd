@@ -74,7 +74,7 @@ fit <- train_data |>
   )
 
 # View the model details (Model Specs)
-fit
+fit |> t()
 ```
 
 
@@ -85,7 +85,7 @@ fit |>
   accuracy() |>
   select(Varietal, .model, RMSE, MAE, MAPE) |>
   arrange(.model, RMSE) |>
-  gt() |> fmt_number(decimals = 2)
+  gt() |> fmt_number(decimals = 2) |> 
   tab_header(title = "Training Accuracy (Training Set)")
 ```
 
