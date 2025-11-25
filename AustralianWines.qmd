@@ -86,7 +86,7 @@ fit |>
   select(Varietal, .model, RMSE, MAE, MAPE) |>
   arrange(.model, RMSE) |>
   gt() |> fmt_number(decimals = 2)
-  tab_header(title = "Train Accuracy (Training Set)")
+  tab_header(title = "Training Accuracy (Training Set)")
 ```
 
 
