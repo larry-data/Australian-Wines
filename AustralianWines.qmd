@@ -1,6 +1,6 @@
 ---
 title: "Australian Wines Time Series Analysis"
-format: html
+format: pdf
 ---
 
 ```{r}
@@ -10,7 +10,6 @@ library(gt)
 library(urca)
 ```
 
-## Tab1 - Visualizatoin
 
 ### Data Import and Preparation
 
@@ -29,6 +28,10 @@ aus_wine_ts <- aus_wine |>
 
 ```
 
+## Shiny Tab1 - Visualizatoin
+* Visualization displays selected variety in a well formed viz;
+* Vertical line to indicate training/validation split
+* Training interval (cutoff_date) is controllable
 
 ###  Data Visualization
 
@@ -46,12 +49,13 @@ aus_wine_ts |>
   geom_vline(xintercept = cutoff_date, linetype = "dashed", color = "black", linewidth = 0.6)
 ```
 
-## Tab 2 - Model Building
+## Shiny Tab 2 - Model Building
 
 Inputs:
 
 * Toggle for model specificatoin (default off)
 * Toggle Training accuracy (default off)
+* Toggle Forecast accuracy (default off)
 
 ### Model Fitting
 
@@ -82,6 +86,7 @@ fit |>
   select(Varietal, .model, RMSE, MAE, MAPE) |>
   arrange(.model, RMSE) |>
   gt() |> fmt_number(decimals = 2)
+  tab_header(title = "Train Accuracy (Training Set)")
 ```
 
 
@@ -105,11 +110,15 @@ accuracy_table |>
   tab_header(title = "Forecast Accuracy (Validation Set)")
 ```
 
-## Tab3 - Forecast
+## Shiny Tab3 - Forecast
 
 Inputs:
 
 * Select the model for the Forecast table
+* Select forecast horizon (default 12 months)
+* Display forecast visualization (the two plots below)
+* Display forecast table
+
 
 ### Forecast Visualization
 
@@ -149,7 +158,9 @@ fc |>
   fmt_number(columns = everything(), decimals = 0)
 ```
 
-## Tab4 - About
+## Shiny Tab4 - About
+* Displaying the content below
+
 This Australian Wines Time Series Analysis Quarto document provides a comprehensive overview of the sales trends of various wine varietals in Australia. The analysis includes data visualization, model building, forecast accuracy evaluation, and detailed forecasting. 
 
 The document is structured into four main tabs: Visualization, Model Building, Forecast, and About. Each tab offers insights into different aspects of the time series analysis, from initial data exploration to advanced forecasting techniques.
